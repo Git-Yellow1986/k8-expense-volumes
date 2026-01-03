@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend
+  namespace: expense  
+data:
+  DB_HOST: mysql
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: expense
+  labels:
+    app: backend
+    tier: api
+    project: expense
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+      tier: api
+      project: expense
+  template:
+    metadata:
+      labels:
+        app: backend
+        tier: api  
+        project: expense
+    spec:
+      containers:
+      - name: backend
+        image: yellow1238/backend:v1
+        resources:
+          requests:
+            memory: "120Mi"
+            cpu: "100m"
+            # limits is greater than or equal to requests 
+          limits:
+            memory: "120Mi"
+            cpu: "100m"  
+        envFrom:
+        - configMapRef:
+            name: backend
+        ports:
+        - containerPort: 8080
+---
+# if anybod wants to connect backend from outside of cluster
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: expense
+spec:
+  selector:
+    app: backend
+    tier: api
+    project: expense
+  ports:
+    - name: backend-port
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend
+  namespace: expense
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: backend
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 15 # usually 75 in real environment
+  
