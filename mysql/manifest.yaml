@@ -1,33 +1,33 @@
-apiVersion: v1
 kind: Service
+apiVersion: v1
 metadata:
   name: mysql-headless
   namespace: expense
 spec:
-  clusterIP: None
+  clusterIP: None # for headless service there is no cluster IP
   selector:
-    component: mysql
     project: expense
-    tier: db  
-    ports:
-    - port: 3306
-      protocol: TCP
-      targetPort: 3306
+    component: mysql
+    tier: db
+  ports:
+  - protocol: TCP
+    port: 3306 # service port
+    targetPort: 3306
 ---
-apiVersion: v1
 kind: Service
+apiVersion: v1
 metadata:
-  name: nginx
+  name: mysql
   namespace: expense
 spec:
-  ports:
-    port: 3306
-    protocol: TCP
-    targetPort: 3306
   selector:
-    component: mysql
     project: expense
+    component: mysql
     tier: db
+  ports:
+  - protocol: TCP
+    port: 3306 # service port
+    targetPort: 3306
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -35,32 +35,33 @@ metadata:
   name: mysql
   namespace: expense
 spec:
-  replicas: 2
   selector:
     matchLabels:
-      component: mysql
       project: expense
+      component: mysql
       tier: db
-  serviceName: mysql-headless
-  spec:
-    containers:
-      - image: yellow1238/mysql:v1
-        name: mysql
-        volumeMounts:
-          - mountPath: /var/lib/mysql
-            name: mysql
+  serviceName: "mysql-headless" # this is the headless service should be mentioned for statefulset
+  replicas: 2 # 
   template:
-    labels:
-      component: mysql
-      project: expense
-      tier: db
-    # This is pvc definition, directly mentioned here
-volumeClaimTemplates:
+    metadata:
+      labels:
+        project: expense
+        component: mysql
+        tier: db
+    spec:
+      containers:
+      - name: mysql
+        image: yellow1238/mysql:v1
+        volumeMounts:
+        - name: mysql
+          mountPath: /var/lib/mysql
+  # This is PVC defnition, directly mentioned here
+  volumeClaimTemplates:
   - metadata:
       name: mysql
     spec:
       accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "expense-ebs"
       resources:
         requests:
           storage: 1Gi
-      storageClassName: expense-ebs
